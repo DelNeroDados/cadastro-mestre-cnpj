@@ -1,0 +1,51 @@
+# Regras de match e de sobrevivência do cadastro mestre (lido por mdm_cnpj/mdm.py).
+
+match:
+  # Pesos do score de similaridade usado quando o CNPJ está ausente ou inválido.
+  # Se um dos lados não tem o atributo, o peso dele é redistribuído entre os demais.
+  pesos:
+    nome: 0.45        # razão social normalizada (sem LTDA, ME, acentos, CPF)
+    cnpj: 0.35        # semelhança dos dígitos: pega erro de digitação de 1 ou 2 posições
+    cep: 0.15
+    municipio: 0.05
+  # Acima de `automatico`: une sem intervenção humana.
+  # Entre `revisao` e `automatico`: vai para a fila do Data Steward.
+  # Abaixo de `revisao`: fica em quarentena como registro sem correspondente.
+  limiares:
+    automatico: 0.88
+    revisao: 0.65
+
+sobrevivencia:
+  # Regra padrão para todos os campos: a fonte mais confiável vence.
+  # Empate (duas versões da mesma fonte, como dois cartões): vence a mais recente;
+  # persistindo o empate, o registro com melhor nota de qualidade.
+  padrao:
+    prioridade: [receita, cartao, erp]
+    desempate: [mais_recente, maior_score]
+
+  # Exceções justificadas campo a campo.
+  campos:
+    email:
+      prioridade: [erp, receita, cartao]
+      motivo: >-
+        O contato que a área comercial mantém no ERP é o que o cliente usa hoje;
+        o da Receita costuma ser o do contador.
+    telefone:
+      prioridade: [erp, receita, cartao]
+      motivo: Mesmo motivo do e-mail.
+    nome_fantasia:
+      prioridade: [receita, erp, cartao]
+      motivo: >-
+        Quando a Receita não tem nome fantasia, o nome usado pelo comercial
+        é mais útil que o do cartão, que reflete a mesma base da Receita.
+
+  # Um valor só concorre se passar no validador do campo.
+  # Assim um CEP de 7 dígitos do ERP nunca vence um CEP válido do cartão.
+  validar_antes:
+    cnpj: cnpj
+    cep: cep
+    uf: uf
+    email: email
+    telefone: telefone
+    cnae_principal: cnae
+    data_abertura: data

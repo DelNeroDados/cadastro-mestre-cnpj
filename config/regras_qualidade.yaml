@@ -1,0 +1,228 @@
+# Regras de qualidade do cadastro de empresas.
+# Lido por mdm_cnpj/qualidade.py; para mudar uma regra não precisa mexer no código.
+#
+# Tipos:
+#   obrigatorio, obrigatorio_algum (um dos `campos`), validador (nome em
+#   validadores.VALIDADORES), dominio (`valores`), cep_uf, datas_ordem
+#   (campos[0] <= campos[1]), matriz_filial, unico, idade_maxima (`dias`), igual (`valor`)
+#
+# opcional: true  -> campo vazio não é avaliado (a completude é outra regra)
+# no_score: true  -> só alerta, não entra no índice
+# fontes          -> receita, cartao, erp, mestre (padrão: todas)
+versao: "2.0"
+dono_do_dado: "Área Comercial / Cadastro de Clientes"
+steward: "Analista de Qualidade de Dados"
+
+# Meta mínima de conformidade (%) por dimensão.
+metas:
+  completude: 95
+  validade: 98
+  consistencia: 97
+  unicidade: 100
+  atualidade: 70
+
+# Peso de cada severidade no índice geral.
+pesos_severidade:
+  critica: 8
+  alta: 4
+  media: 2
+  baixa: 1
+
+regras:
+  # ------------------------------- Identificação -----------------------
+  - id: DQ001
+    nome: CNPJ preenchido
+    dimensao: completude
+    tipo: obrigatorio
+    campo: cnpj
+    severidade: critica
+    acao: Recuperar o CNPJ no documento de origem ou junto ao cliente.
+
+  - id: DQ002
+    nome: CNPJ com dígitos verificadores válidos
+    descricao: Módulo 11 da Receita; aceita o CNPJ alfanumérico (julho/2026).
+    dimensao: validade
+    tipo: validador
+    validador: cnpj
+    campo: cnpj
+    opcional: true
+    severidade: critica
+    acao: Erro de digitação provável. Conferir no cartão CNPJ e corrigir na origem.
+
+  - id: DQ003
+    nome: CNPJ único na fonte
+    descricao: >-
+      Aplicada ao ERP e ao cadastro mestre. Nos cartões, vários PDFs do mesmo CNPJ são esperados
+      (versões emitidas em datas diferentes) e são resolvidos pelo MDM.
+    dimensao: unicidade
+    tipo: unico
+    campo: cnpj
+    fontes: [erp, mestre]
+    severidade: alta
+    acao: Unificar os cadastros duplicados no ERP, mantendo o código mais antigo.
+
+  - id: DQ004
+    nome: Razão social preenchida
+    dimensao: completude
+    tipo: obrigatorio
+    campo: razao_social
+    severidade: critica
+    acao: Preencher com a razão social da Receita.
+
+  - id: DQ005
+    nome: Matriz/filial coerente com o CNPJ
+    descricao: A ordem 0001 do CNPJ identifica a matriz.
+    dimensao: consistencia
+    tipo: matriz_filial
+    severidade: media
+    acao: Corrigir o tipo de estabelecimento conforme a ordem do CNPJ.
+
+  # ------------------------------- Situação e datas ---------------------
+  - id: DQ006
+    nome: Situação cadastral preenchida
+    dimensao: completude
+    tipo: obrigatorio
+    campo: situacao_cadastral
+    fontes: [cartao, receita, mestre]
+    severidade: alta
+    acao: Consultar a situação na Receita.
+
+  - id: DQ007
+    nome: Situação cadastral dentro do domínio da Receita
+    dimensao: validade
+    tipo: dominio
+    campo: situacao_cadastral
+    valores: [ATIVA, BAIXADA, INAPTA, SUSPENSA, NULA]
+    opcional: true
+    severidade: alta
+    acao: Padronizar para um dos valores oficiais.
+
+  - id: DQ008
+    nome: Data de abertura válida e não futura
+    dimensao: validade
+    tipo: validador
+    validador: data
+    campo: data_abertura
+    opcional: true
+    severidade: media
+    acao: Conferir a data de início de atividade na Receita.
+
+  - id: DQ009
+    nome: Situação cadastral posterior à abertura
+    dimensao: consistencia
+    tipo: datas_ordem
+    campos: [data_abertura, data_situacao_cadastral]
+    severidade: media
+    acao: Uma das datas está errada; prevalece a da Receita.
+
+  - id: DQ010
+    nome: Empresa com situação ATIVA
+    descricao: Regra de negócio. CNPJ baixado ou inapto não pode receber nota fiscal.
+    dimensao: consistencia
+    tipo: igual
+    campo: situacao_cadastral
+    valor: ATIVA
+    opcional: true
+    no_score: true
+    severidade: alta
+    acao: Bloquear o cliente para faturamento e avisar a área comercial.
+
+  # ------------------------------- Atividade econômica ------------------
+  - id: DQ011
+    nome: CNAE principal com 7 dígitos
+    dimensao: validade
+    tipo: validador
+    validador: cnae
+    campo: cnae_principal
+    opcional: true
+    fontes: [cartao, receita]
+    severidade: media
+    acao: Corrigir o código CNAE conforme a Receita.
+
+  # ------------------------------- Endereço -----------------------------
+  - id: DQ012
+    nome: CEP preenchido
+    dimensao: completude
+    tipo: obrigatorio
+    campo: cep
+    severidade: alta
+    acao: Completar o endereço com o CEP.
+
+  - id: DQ013
+    nome: CEP com 8 dígitos
+    dimensao: validade
+    tipo: validador
+    validador: cep
+    campo: cep
+    opcional: true
+    severidade: alta
+    acao: CEP truncado ou com dígitos a mais; conferir nos Correios.
+
+  - id: DQ014
+    nome: UF válida
+    dimensao: validade
+    tipo: validador
+    validador: uf
+    campo: uf
+    severidade: alta
+    acao: Informar a sigla oficial da UF.
+
+  - id: DQ015
+    nome: CEP pertence à UF informada
+    descricao: Faixas de CEP dos Correios por UF.
+    dimensao: consistencia
+    tipo: cep_uf
+    severidade: alta
+    acao: CEP ou UF trocados. Prevalece o endereço da Receita.
+
+  - id: DQ016
+    nome: Município preenchido
+    dimensao: completude
+    tipo: obrigatorio
+    campo: municipio
+    severidade: media
+    acao: Completar o município a partir do CEP.
+
+  # ------------------------------- Contato ------------------------------
+  - id: DQ017
+    nome: Pelo menos um contato (e-mail ou telefone)
+    dimensao: completude
+    tipo: obrigatorio_algum
+    campos: [email, telefone]
+    fontes: [erp, mestre]
+    severidade: baixa
+    acao: Solicitar um contato ao cliente no próximo atendimento.
+
+  - id: DQ018
+    nome: E-mail em formato válido
+    dimensao: validade
+    tipo: validador
+    validador: email
+    campo: email
+    opcional: true
+    severidade: baixa
+    acao: Corrigir o e-mail com o cliente.
+
+  - id: DQ019
+    nome: Telefone com DDD e número válidos
+    dimensao: validade
+    tipo: validador
+    validador: telefone
+    campo: telefone
+    opcional: true
+    severidade: baixa
+    acao: Completar o DDD ou corrigir o número.
+
+  # ------------------------------- Atualidade ---------------------------
+  - id: DQ020
+    nome: Informação com menos de 1 ano
+    descricao: >-
+      Cartão emitido ou cadastro do ERP atualizado nos últimos 365 dias.
+      A Receita não entra: é consultada no momento da carga.
+    dimensao: atualidade
+    tipo: idade_maxima
+    campo: data_referencia
+    dias: 365
+    fontes: [cartao, erp]
+    severidade: media
+    acao: Emitir um cartão CNPJ novo ou revalidar o cadastro com o cliente.

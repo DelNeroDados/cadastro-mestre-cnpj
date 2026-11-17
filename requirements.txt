@@ -1,0 +1,10 @@
+# Núcleo (demo e modo real)
+pandas>=2.0
+PyYAML>=6.0
+RapidFuzz>=3.0
+Jinja2>=3.1
+# Modo real: leitura de PDFs e consulta à Receita
+pdfplumber>=0.11
+requests>=2.31
+# Testes
+pytest>=8.0

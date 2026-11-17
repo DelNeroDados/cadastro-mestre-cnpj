@@ -1,0 +1,3 @@
+* text=auto
+# O cmd.exe se confunde com .bat em LF.
+*.bat text eol=crlf

@@ -1,0 +1,36 @@
+# ------------------------------------------------------------------
+# DADOS REAIS DE CLIENTES: nunca vão para o GitHub.
+# Os cartões CNPJ e tudo o que é derivado deles ficam só nesta máquina.
+# A demonstração pública usa a base sintética gerada por mdm_cnpj/demo.py.
+# ------------------------------------------------------------------
+extracted_cnpjs/
+no_extracted_cnpjs/
+*.pdf
+*.PDF
+*.zip
+saida_real/
+.cache/
+_old_/
+
+# A base sintética e a saída da demo são regeneradas por `executar.py demo`.
+# O RESUMO.md e o relatório da demo SÃO versionados, para quem visita o
+# repositório ver o resultado sem precisar rodar nada.
+dados_demo/
+saida_demo/*
+!saida_demo/RESUMO.md
+!saida_demo/relatorio_qualidade.html
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+.python_embed/
+
+# Editores e sistema
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+.DS_Store
